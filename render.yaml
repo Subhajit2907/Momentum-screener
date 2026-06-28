@@ -3,7 +3,7 @@ services:
     name: nifty-midcap-screener
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --workers 2 --timeout 300
+    startCommand: gunicorn app:app --workers 1 --timeout 300
     envVars:
       - key: SECRET_KEY
         generateValue: true
