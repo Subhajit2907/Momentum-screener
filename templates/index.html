@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Nifty Midcap Screener</title>
+<style>
+  :root {
+    --bg:       #0d1117;
+    --surface:  #161b22;
+    --border:   #30363d;
+    --accent:   #238636;
+    --accent2:  #58a6ff;
+    --text:     #e6edf3;
+    --muted:    #8b949e;
+    --green:    #3fb950;
+    --red:      #f85149;
+    --gold:     #d29922;
+    --top10:    #1a3a1a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 16px 16px;
+    text-align: center;
+  }
+  header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+  header p  { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* ── Card ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin: 16px;
+    padding: 16px;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  /* ── Upload area ── */
+  .upload-area {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+  .upload-area:hover, .upload-area.drag { border-color: var(--accent2); background: #0d2840; }
+  .upload-area input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .upload-icon { font-size: 32px; margin-bottom: 8px; }
+  .upload-text  { font-size: 14px; font-weight: 600; }
+  .upload-hint  { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .file-chosen  { font-size: 13px; color: var(--green); margin-top: 8px; font-weight: 600; }
+
+  /* ── Filters chips ── */
+  .filters {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px;
+  }
+  .chip {
+    padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    background: #0d2840; color: var(--accent2); border: 1px solid #1f4a72;
+  }
+
+  /* ── Button ── */
+  .btn {
+    width: 100%; padding: 14px; border: none; border-radius: 8px;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+    transition: all 0.2s; letter-spacing: 0.2px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #238636, #2ea043);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(35,134,54,0.4);
+  }
+  .btn-primary:disabled {
+    background: #21262d; color: var(--muted); box-shadow: none; cursor: not-allowed;
+  }
+  .btn-download {
+    background: linear-gradient(135deg, #1f6feb, #388bfd);
+    color: #fff; margin-top: 12px;
+    box-shadow: 0 2px 8px rgba(31,111,235,0.4);
+  }
+
+  /* ── Progress ── */
+  .progress-wrap { margin-top: 14px; display: none; }
+  .progress-bar-bg {
+    height: 6px; background: #21262d; border-radius: 4px; overflow: hidden; margin-bottom: 8px;
+  }
+  .progress-bar {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #238636, #3fb950);
+    border-radius: 4px; transition: width 0.4s ease;
+    animation: indeterminate 1.5s infinite linear;
+    background-size: 200% 100%;
+  }
+  @keyframes indeterminate {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  .progress-text { font-size: 12px; color: var(--muted); text-align: center; }
+
+  /* ── Stats bar ── */
+  .stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 4px;
+  }
+  .stat-box {
+    background: #0d1117; border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 8px; text-align: center;
+  }
+  .stat-val  { font-size: 22px; font-weight: 700; color: var(--accent2); }
+  .stat-lbl  { font-size: 10px; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* ── Table ── */
+  .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 560px; }
+  th {
+    background: #1c2128; color: var(--muted);
+    font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase;
+    padding: 8px 10px; text-align: right; white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  th:first-child, th:nth-child(2) { text-align: left; }
+  td {
+    padding: 10px 10px; border-bottom: 1px solid #21262d;
+    text-align: right; white-space: nowrap;
+  }
+  td:first-child, td:nth-child(2) { text-align: left; }
+  tr.top10  { background: var(--top10); }
+  tr:hover  { background: #1c2128; }
+  .rank-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%;
+    font-size: 11px; font-weight: 700;
+    background: #21262d; color: var(--muted);
+  }
+  .rank-badge.top { background: #2c4a1e; color: var(--green); }
+  .sym  { font-weight: 700; font-family: monospace; font-size: 13px; }
+  .pos  { color: var(--green); font-weight: 600; }
+  .rsi-hi { color: #3fb950; font-weight: 700; }
+  .rsi-lo { color: #d29922; font-weight: 700; }
+  .score  { color: var(--accent2); font-weight: 700; }
+  .star   { color: var(--gold); margin-right: 2px; }
+
+  /* ── Section toggle ── */
+  .toggle-btn {
+    width: 100%; background: none; border: 1px solid var(--border);
+    color: var(--muted); padding: 10px; border-radius: 8px;
+    font-size: 12px; cursor: pointer; margin-top: 8px; text-align: left;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .toggle-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+  .collapsible { display: none; margin-top: 10px; }
+  .collapsible.open { display: block; }
+
+  /* ── Alert ── */
+  .alert {
+    padding: 12px 14px; border-radius: 8px; font-size: 13px;
+    border: 1px solid; margin-top: 8px;
+  }
+  .alert-error  { background: #2d1117; border-color: var(--red);  color: var(--red); }
+  .alert-info   { background: #0d2840; border-color: var(--accent2); color: var(--accent2); }
+
+  /* ── Hidden ── */
+  .hidden { display: none; }
+
+  /* ── Run date ── */
+  .run-meta { font-size: 11px; color: var(--muted); text-align: right; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📈 Nifty Midcap Screener</h1>
+  <p>EMA · RSI · Volume · 52W High — Top 10 by Composite Score</p>
+</header>
+
+<!-- Upload card -->
+<div class="card" id="upload-card">
+  <div class="card-title">Upload Universe CSV</div>
+
+  <div class="filters">
+    <span class="chip">Price &gt; 50 EMA</span>
+    <span class="chip">Price &gt; 100 EMA</span>
+    <span class="chip">Price &gt; 200 EMA</span>
+    <span class="chip">RSI &gt; 50</span>
+    <span class="chip">Avg Vol &gt; 500K</span>
+    <span class="chip">Within 20% of 52W High</span>
+  </div>
+
+  <div class="upload-area" id="drop-zone">
+    <input type="file" id="csv-input" accept=".csv"/>
+    <div class="upload-icon">📂</div>
+    <div class="upload-text">Tap to choose CSV file</div>
+    <div class="upload-hint">Must contain a "Symbol" column</div>
+    <div class="file-chosen hidden" id="file-name"></div>
+  </div>
+
+  <div class="progress-wrap hidden" id="progress-wrap">
+    <div class="progress-bar-bg"><div class="progress-bar" id="progress-bar"></div></div>
+    <div class="progress-text" id="progress-text">Starting…</div>
+  </div>
+
+  <div id="error-box"></div>
+
+  <button class="btn btn-primary" id="run-btn" style="margin-top:14px" disabled>
+    ▶ Run Screener
+  </button>
+</div>
+
+<!-- Results card (hidden until done) -->
+<div class="card hidden" id="results-card">
+  <div class="card-title">Results</div>
+  <div class="run-meta" id="run-meta"></div>
+
+  <!-- Stats -->
+  <div class="stats" id="stats-grid"></div>
+
+  <!-- Download -->
+  <button class="btn btn-download" id="dl-btn">⬇ Download Full Excel Report</button>
+
+  <!-- Top 10 table -->
+  <div style="margin-top:18px">
+    <div class="card-title" style="margin-bottom:8px">⭐ Top 10 Picks</div>
+    <div class="tbl-wrap" id="top10-wrap"></div>
+  </div>
+
+  <!-- All passed toggle -->
+  <button class="toggle-btn" id="all-toggle" onclick="toggleSection('all-section', this)">
+    <span id="all-toggle-label">Show all passing stocks</span>
+    <span>▼</span>
+  </button>
+  <div class="collapsible" id="all-section">
+    <div class="tbl-wrap" id="all-wrap"></div>
+  </div>
+
+  <!-- EMA only toggle -->
+  <button class="toggle-btn" id="rej-toggle" onclick="toggleSection('rej-section', this)" style="margin-top:6px">
+    <span id="rej-toggle-label">Show EMA-pass only stocks</span>
+    <span>▼</span>
+  </button>
+  <div class="collapsible" id="rej-section">
+    <div id="rej-wrap"></div>
+  </div>
+
+  <!-- Run again -->
+  <button class="btn btn-primary" style="margin-top:16px" onclick="resetUI()">↺ Run Again</button>
+</div>
+
+<script>
+let currentJobId  = null;
+let pollTimer     = null;
+let fileBytes     = null;
+
+// ── File selection ─────────────────────────────────────
+const csvInput = document.getElementById('csv-input');
+const dropZone = document.getElementById('drop-zone');
+
+csvInput.addEventListener('change', e => {
+  if (e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+function handleFile(file) {
+  if (!file.name.endsWith('.csv')) {
+    showError('Please select a .csv file.');
+    return;
+  }
+  document.getElementById('file-name').textContent = '✓ ' + file.name;
+  document.getElementById('file-name').classList.remove('hidden');
+  document.getElementById('run-btn').disabled = false;
+  fileBytes = file;
+  clearError();
+}
+
+// ── Run ────────────────────────────────────────────────
+document.getElementById('run-btn').addEventListener('click', async () => {
+  if (!fileBytes) return;
+
+  const fd = new FormData();
+  fd.append('csv_file', fileBytes);
+
+  setRunning(true);
+
+  try {
+    const res  = await fetch('/run', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) { showError(data.error); setRunning(false); return; }
+    currentJobId = data.job_id;
+    pollStatus();
+  } catch(e) {
+    showError('Network error: ' + e.message);
+    setRunning(false);
+  }
+});
+
+// ── Poll ───────────────────────────────────────────────
+function pollStatus() {
+  pollTimer = setInterval(async () => {
+    try {
+      const res  = await fetch('/status/' + currentJobId);
+      const data = await res.json();
+      document.getElementById('progress-text').textContent = data.progress || '…';
+
+      if (data.status === 'done') {
+        clearInterval(pollTimer);
+        renderResults(data.result);
+      } else if (data.status === 'error') {
+        clearInterval(pollTimer);
+        showError(data.error || 'An error occurred.');
+        setRunning(false);
+      }
+    } catch(e) { /* network blip, keep polling */ }
+  }, 1500);
+}
+
+// ── Render ─────────────────────────────────────────────
+function renderResults(result) {
+  setRunning(false);
+  document.getElementById('upload-card').classList.add('hidden');
+  document.getElementById('results-card').classList.remove('hidden');
+
+  // Meta
+  document.getElementById('run-meta').textContent = 'Run date: ' + result.run_date;
+
+  // Stats
+  const s = result.stats;
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-box"><div class="stat-val">${s.scanned}</div><div class="stat-lbl">Scanned</div></div>
+    <div class="stat-box"><div class="stat-val" style="color:var(--green)">${s.passed}</div><div class="stat-lbl">Passed</div></div>
+    <div class="stat-box"><div class="stat-val" style="color:var(--gold)">${s.ema_only}</div><div class="stat-lbl">EMA Only</div></div>
+  `;
+
+  // Download button
+  document.getElementById('dl-btn').onclick = () => {
+    window.location.href = '/download/' + currentJobId;
+  };
+  if (!result.has_excel) {
+    document.getElementById('dl-btn').disabled = true;
+    document.getElementById('dl-btn').textContent = 'No results to download';
+  }
+
+  // Top 10
+  document.getElementById('top10-wrap').innerHTML = buildTable(result.top10, true);
+
+  // All passed toggle label
+  document.getElementById('all-toggle-label').textContent =
+    `Show all ${result.all_passed.length} passing stocks`;
+
+  // All passed table
+  document.getElementById('all-wrap').innerHTML = buildTable(result.all_passed, false);
+
+  // Rejected
+  document.getElementById('rej-toggle-label').textContent =
+    `Show ${result.rejected.length} EMA-pass only stocks (failed RSI/Vol/52W)`;
+
+  if (result.rejected.length > 0) {
+    let rows = result.rejected.map(r =>
+      `<div style="padding:6px 0;border-bottom:1px solid #21262d;font-size:12px">
+        <span style="font-weight:700;font-family:monospace">${r.symbol}</span>
+        <span style="color:var(--muted);margin-left:10px">${r.reason}</span>
+      </div>`
+    ).join('');
+    document.getElementById('rej-wrap').innerHTML = rows;
+  } else {
+    document.getElementById('rej-toggle').style.display = 'none';
+  }
+}
+
+function buildTable(rows, isTop10) {
+  if (!rows || rows.length === 0)
+    return '<div class="alert alert-info">No stocks in this category.</div>';
+
+  const cols = [
+    { key: 'Rank',              label: '#'             },
+    { key: 'Symbol',            label: 'Symbol'        },
+    { key: 'Price (₹)',         label: 'Price'         },
+    { key: 'vs 200 EMA',        label: 'vs 200'        },
+    { key: 'RSI (14)',           label: 'RSI'           },
+    { key: 'Avg Vol (20d)',      label: 'Avg Vol'       },
+    { key: '% from 52W High',   label: '52W%'          },
+    { key: 'Composite Score',   label: 'Score'         },
+  ];
+
+  const head = cols.map(c =>
+    `<th>${c.label}</th>`
+  ).join('');
+
+  const body = rows.map(r => {
+    const rank   = r['Rank'] || '';
+    const isT10  = rank <= 10;
+    const rsi    = parseFloat(r['RSI (14)']) || 0;
+    const rsiCls = rsi >= 60 ? 'rsi-hi' : 'rsi-lo';
+    const badge  = `<span class="rank-badge ${isT10 ? 'top' : ''}">${rank}</span>`;
+    const star   = isT10 ? '<span class="star">★</span>' : '';
+
+    const cells = cols.map(c => {
+      let val = r[c.key] ?? '—';
+      if (c.key === 'Rank')            return `<td>${badge}</td>`;
+      if (c.key === 'Symbol')          return `<td>${star}<span class="sym">${val}</span></td>`;
+      if (c.key === 'Price (₹)')       return `<td>₹${Number(val).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>`;
+      if (c.key === 'vs 200 EMA')      return `<td class="pos">${val}</td>`;
+      if (c.key === 'RSI (14)')        return `<td class="${rsiCls}">${Number(val).toFixed(1)}</td>`;
+      if (c.key === 'Composite Score') return `<td class="score">${val}</td>`;
+      return `<td>${val}</td>`;
+    }).join('');
+
+    return `<tr class="${isT10 && isTop10 ? 'top10' : ''}">${cells}</tr>`;
+  }).join('');
+
+  return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
+// ── Helpers ────────────────────────────────────────────
+function setRunning(on) {
+  document.getElementById('run-btn').disabled = on;
+  document.getElementById('run-btn').textContent = on ? '⏳ Running…' : '▶ Run Screener';
+  document.getElementById('progress-wrap').style.display = on ? 'block' : 'none';
+  if (!on) clearInterval(pollTimer);
+}
+
+function showError(msg) {
+  document.getElementById('error-box').innerHTML =
+    `<div class="alert alert-error">❌ ${msg}</div>`;
+}
+
+function clearError() {
+  document.getElementById('error-box').innerHTML = '';
+}
+
+function toggleSection(id, btn) {
+  const el = document.getElementById(id);
+  const arrow = btn.querySelector('span:last-child');
+  el.classList.toggle('open');
+  arrow.textContent = el.classList.contains('open') ? '▲' : '▼';
+}
+
+function resetUI() {
+  currentJobId = null;
+  fileBytes    = null;
+  csvInput.value = '';
+  document.getElementById('file-name').classList.add('hidden');
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('run-btn').textContent = '▶ Run Screener';
+  document.getElementById('progress-wrap').style.display = 'none';
+  document.getElementById('error-box').innerHTML = '';
+  document.getElementById('upload-card').classList.remove('hidden');
+  document.getElementById('results-card').classList.add('hidden');
+  // Reset toggles
+  ['all-section','rej-section'].forEach(id => {
+    document.getElementById(id).classList.remove('open');
+  });
+}
+</script>
+</body>
+</html>
